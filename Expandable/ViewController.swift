@@ -13,6 +13,9 @@ class ViewController: UIViewController, UITableViewDelegate, UITableViewDataSour
     // this array will contain all the cell description dictionaries that will be loaded from the property list file.
     var cellDescriptors: NSMutableArray!
     
+    // this 2-dimensional array will store the visible cells for each section
+    var visibleRowsPerSection = [[Int]]()
+    
     // MARK: IBOutlet Properties
     
     @IBOutlet weak var tblExpandable: UITableView!
@@ -42,14 +45,35 @@ class ViewController: UIViewController, UITableViewDelegate, UITableViewDataSour
         // Dispose of any resources that can be recreated.
     }
 
+    // MARK: Tutorial Functions
+    
     // this function is responsible for loading the file contents into the array
     func loadCellDescriptors() {
     // we first make sure that the path to the property lists is valid, and then we initialize the cellDescriptors array by loading the file contents.
         if let path = NSBundle.mainBundle().pathForResource("CellDescriptor", ofType: "plist") {
             cellDescriptors = NSMutableArray(contentsOfFile: path)
+            // the getIndiciesOfVisibleRows func needs to first be called after the cellDescriptors have been loaded
+            getIndiciesOfVisibleRows()
+            tblExpandable.reloadData()
         }
     }
     
+    // this function provides the row index values for the cells that have been designated as visible only.  A normal implementation of cellForRowAtIndexPath will not work in this situation because we have cells designated as visible and not visible.
+    func getIndiciesOfVisibleRows() {
+        visibleRowsPerSection.removeAll()
+        
+        for currentSectionCells in cellDescriptors {
+            var visibleRows = [Int]()
+            
+            for row in 0...((currentSectionCells as! [[String: AnyObject]]).count - 1) {
+                if currentSectionCells[row]["isVisible"] as! Bool == true {
+                    visibleRows.append(row)
+                }
+            }
+            
+            visibleRowsPerSection.append(visibleRows)
+        }
+    }
     
     // MARK: Custom Functions
     
