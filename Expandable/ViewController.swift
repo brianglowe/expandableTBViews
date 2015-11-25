@@ -191,8 +191,41 @@ class ViewController: UIViewController, UITableViewDelegate, UITableViewDataSour
     }
     
     func tableView(tableView: UITableView, didSelectRowAtIndexPath indexPath: NSIndexPath) {
+        // first we need to get the actual index of the tapped row, seen below
+        let indexOfTappedRow = visibleRowsPerSection[indexPath.section][indexPath.row]
+        
+        // then we need to check the cellDescriptors array to see if the selected cell is expandable or not.
+        if cellDescriptors[indexPath.section][indexOfTappedRow]["isExpandable"] as! Bool == true {
+            var shouldExpandAndShowSubRows = false
+            if cellDescriptors[indexPath.section][indexOfTappedRow]["isExpanded"] as! Bool == false {
+                // In this case the cell should expand.
+                shouldExpandAndShowSubRows = true
+            }
+        
+            cellDescriptors[indexPath.section][indexOfTappedRow].setValue(shouldExpandAndShowSubRows, forKey: "isExpanded")
+            
+            for i in (indexOfTappedRow + 1)...(indexOfTappedRow + (cellDescriptors[indexPath.section][indexOfTappedRow]["additionalRows"] as! Int)) {
+                cellDescriptors[indexPath.section][i].setValue(shouldExpandAndShowSubRows, forKey: "isVisible")
+            }
+        }
+        
+        getIndiciesOfVisibleRows()
+        tblExpandable.reloadSections(NSIndexSet(index: indexPath.section), withRowAnimation: UITableViewRowAnimation.Fade)
         
     }
-    
+
+
+
+
 }
+
+
+
+
+
+
+
+
+
+
 
