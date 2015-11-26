@@ -8,7 +8,7 @@
 
 import UIKit
 
-class ViewController: UIViewController, UITableViewDelegate, UITableViewDataSource {
+class ViewController: UIViewController, UITableViewDelegate, UITableViewDataSource, CustomCellDelegate { // by implementing the CustomCellDelegate in the VC we are able to provide further function from the CustomCell.swift.
 
     // this array will contain all the cell description dictionaries that will be loaded from the property list file.
     var cellDescriptors: NSMutableArray!
@@ -36,9 +36,7 @@ class ViewController: UIViewController, UITableViewDelegate, UITableViewDataSour
         // we dont want to load the table before it is configured!
         loadCellDescriptors()
         print(cellDescriptors)
-    
     }
-    
     
     override func didReceiveMemoryWarning() {
         super.didReceiveMemoryWarning()
@@ -46,6 +44,67 @@ class ViewController: UIViewController, UITableViewDelegate, UITableViewDataSour
     }
 
     // MARK: Tutorial Functions
+    
+    // this funciton provides the selected date from the picker in the cell
+    func dateWasSelected(selectedDateString: String) {
+        let dateCellSection = 0
+        let dateCellRow = 3
+        
+        cellDescriptors[dateCellSection][dateCellRow].setValue(selectedDateString, forKey: "primaryTitle")
+        tblExpandable.reloadData()
+    }
+    
+    // this function assigns the switch control to married or single
+    // first, we set the proper value (“Single” or “Married”) to the respective top-level cell
+    // then, we update the switch’s value to the cellDescriptors array, so it has the proper state when the tableview gets refreshed
+    func maritalStatusSwitchChangedState(isOn: Bool) {
+        let maritalSwitchCellSection = 0
+        let maritalSwitchCellRow = 6
+        
+        let valueToStore = (isOn) ? "true" : "false"
+        let valueToDisplay = (isOn) ? "Married" : "Single"
+        
+        cellDescriptors[maritalSwitchCellSection][maritalSwitchCellRow].setValue(valueToStore, forKey: "value")
+        cellDescriptors[maritalSwitchCellSection][maritalSwitchCellRow - 1].setValue(valueToDisplay, forKey: "primaryTitle")
+        tblExpandable.reloadData()
+    }
+    
+    // Here we handle the text field and compose the full name dynamically
+    // first, we need to specify the row index of the cell that contains the textfield, and based on that to add the given value to the full name
+    // then, we update the displayed text (full name) of the top-level cell and we refresh the tableview so as to reflect all changes
+    func textfieldTextWasChanged(newText: String, parentCell: CustomCell) {
+        let parentCellIndexPath = tblExpandable.indexPathForCell(parentCell)
+        
+        let currentFullname = cellDescriptors[0][0]["primaryTitle"] as! String
+        let fullnameParts = currentFullname.componentsSeparatedByString(" ")
+        
+        var newFullname = ""
+        
+        if parentCellIndexPath?.row == 1 {
+            if fullnameParts.count == 2 {
+                newFullname = "\(newText) \(fullnameParts[1])"
+            }
+            else {
+                newFullname = newText
+            }
+        }
+        else {
+            newFullname = "\(fullnameParts[0]) \(newText)"
+        }
+        
+        cellDescriptors[0][0].setValue(newFullname, forKey: "primaryTitle")
+        tblExpandable.reloadData()
+    }
+    
+    // the user changes the slider value, we want two things to happen at the same time:
+    // (1) update the top-level cell’s text label with the new slider value (“experience level” in our app)
+    // (2) store the slider’s value to the respective cell descriptor so it remains up to date even after having refreshed the tableview
+    func sliderDidChangeValue(newSliderValue: String) {
+        cellDescriptors[2][0].setValue(newSliderValue, forKey: "primaryTitle")
+        cellDescriptors[2][1].setValue(newSliderValue, forKey: "value")
+        
+        tblExpandable.reloadSections(NSIndexSet(index: 2), withRowAnimation: UITableViewRowAnimation.None)
+    }
     
     // this function is responsible for loading the file contents into the array
     func loadCellDescriptors() {
@@ -168,6 +227,8 @@ class ViewController: UIViewController, UITableViewDelegate, UITableViewDataSour
             let value = currentCellDescriptor["value"] as! String
             cell.slExperienceLevel.value = (value as NSString).floatValue
         }
+        // because we are now using CustomCellDelegate, we must tell the TBView that the ViewController is the delegate
+        cell.delegate = self
         
         return cell
     }
@@ -191,8 +252,66 @@ class ViewController: UIViewController, UITableViewDelegate, UITableViewDataSour
     }
     
     func tableView(tableView: UITableView, didSelectRowAtIndexPath indexPath: NSIndexPath) {
+        // first we need to get the actual index of the tapped row, seen below
+        let indexOfTappedRow = visibleRowsPerSection[indexPath.section][indexPath.row]
+        
+        // then we need to check the cellDescriptors array to see if the selected cell is expandable or not.
+        if cellDescriptors[indexPath.section][indexOfTappedRow]["isExpandable"] as! Bool == true {
+            var shouldExpandAndShowSubRows = false
+            if cellDescriptors[indexPath.section][indexOfTappedRow]["isExpanded"] as! Bool == false {
+                // In this case the cell should expand.
+                shouldExpandAndShowSubRows = true
+            }
+        
+            cellDescriptors[indexPath.section][indexOfTappedRow].setValue(shouldExpandAndShowSubRows, forKey: "isExpanded")
+            
+            for i in (indexOfTappedRow + 1)...(indexOfTappedRow + (cellDescriptors[indexPath.section][indexOfTappedRow]["additionalRows"] as! Int)) {
+                cellDescriptors[indexPath.section][i].setValue(shouldExpandAndShowSubRows, forKey: "isVisible")
+            }
+        
+        }   else {
+            //We’ll find the row index of the top-level cell that is supposed to be the “parent” cell of the tapped one. In truth, we’ll perform a search towards the beginning of the cell descriptors and the first top-level cell that is spotted (the first cell that is expandable) is the one we want.
+                if cellDescriptors[indexPath.section][indexOfTappedRow]["cellIdentifier"] as! String == "idCellValuePicker" {
+         
+                var indexOfParentCell: Int!
+                
+                for var i=indexOfTappedRow - 1; i>=0; --i {
+                    if cellDescriptors[indexPath.section][i]["isExpandable"] as! Bool == true {
+                        indexOfParentCell = i
+                        break
+                    }
+                }
+                // We’ll set the displayed value of the selected cell as the text of the textLabel label of the top-level cell.
+                // We’ll mark the top-level cell as not expanded.
+                cellDescriptors[indexPath.section][indexOfParentCell].setValue((tblExpandable.cellForRowAtIndexPath(indexPath) as! CustomCell).textLabel?.text, forKey: "primaryTitle")
+                cellDescriptors[indexPath.section][indexOfParentCell].setValue(false, forKey: "isExpanded")
+                    
+                // We’ll mark all the sub-cells of the found top-level one as not visible.
+                for i in (indexOfParentCell + 1)...(indexOfParentCell + (cellDescriptors[indexPath.section][indexOfParentCell]["additionalRows"] as! Int)) {
+                    cellDescriptors[indexPath.section][i].setValue(false, forKey: "isVisible")
+                    }
+            
+                }
+            
+        }
+        
+        getIndiciesOfVisibleRows()
+        tblExpandable.reloadSections(NSIndexSet(index: indexPath.section), withRowAnimation: UITableViewRowAnimation.Fade)
         
     }
-    
+
+
+
+
 }
+
+
+
+
+
+
+
+
+
+
 
