@@ -8,7 +8,7 @@
 
 import UIKit
 
-class ViewController: UIViewController, UITableViewDelegate, UITableViewDataSource {
+class ViewController: UIViewController, UITableViewDelegate, UITableViewDataSource, CustomCellDelegate { // by implementing the CustomCellDelegate in the VC we are able to provide further function from the CustomCell.swift.
 
     // this array will contain all the cell description dictionaries that will be loaded from the property list file.
     var cellDescriptors: NSMutableArray!
@@ -36,9 +36,7 @@ class ViewController: UIViewController, UITableViewDelegate, UITableViewDataSour
         // we dont want to load the table before it is configured!
         loadCellDescriptors()
         print(cellDescriptors)
-    
     }
-    
     
     override func didReceiveMemoryWarning() {
         super.didReceiveMemoryWarning()
@@ -46,6 +44,67 @@ class ViewController: UIViewController, UITableViewDelegate, UITableViewDataSour
     }
 
     // MARK: Tutorial Functions
+    
+    // this funciton provides the selected date from the picker in the cell
+    func dateWasSelected(selectedDateString: String) {
+        let dateCellSection = 0
+        let dateCellRow = 3
+        
+        cellDescriptors[dateCellSection][dateCellRow].setValue(selectedDateString, forKey: "primaryTitle")
+        tblExpandable.reloadData()
+    }
+    
+    // this function assigns the switch control to married or single
+    // first, we set the proper value (“Single” or “Married”) to the respective top-level cell
+    // then, we update the switch’s value to the cellDescriptors array, so it has the proper state when the tableview gets refreshed
+    func maritalStatusSwitchChangedState(isOn: Bool) {
+        let maritalSwitchCellSection = 0
+        let maritalSwitchCellRow = 6
+        
+        let valueToStore = (isOn) ? "true" : "false"
+        let valueToDisplay = (isOn) ? "Married" : "Single"
+        
+        cellDescriptors[maritalSwitchCellSection][maritalSwitchCellRow].setValue(valueToStore, forKey: "value")
+        cellDescriptors[maritalSwitchCellSection][maritalSwitchCellRow - 1].setValue(valueToDisplay, forKey: "primaryTitle")
+        tblExpandable.reloadData()
+    }
+    
+    // Here we handle the text field and compose the full name dynamically
+    // first, we need to specify the row index of the cell that contains the textfield, and based on that to add the given value to the full name
+    // then, we update the displayed text (full name) of the top-level cell and we refresh the tableview so as to reflect all changes
+    func textfieldTextWasChanged(newText: String, parentCell: CustomCell) {
+        let parentCellIndexPath = tblExpandable.indexPathForCell(parentCell)
+        
+        let currentFullname = cellDescriptors[0][0]["primaryTitle"] as! String
+        let fullnameParts = currentFullname.componentsSeparatedByString(" ")
+        
+        var newFullname = ""
+        
+        if parentCellIndexPath?.row == 1 {
+            if fullnameParts.count == 2 {
+                newFullname = "\(newText) \(fullnameParts[1])"
+            }
+            else {
+                newFullname = newText
+            }
+        }
+        else {
+            newFullname = "\(fullnameParts[0]) \(newText)"
+        }
+        
+        cellDescriptors[0][0].setValue(newFullname, forKey: "primaryTitle")
+        tblExpandable.reloadData()
+    }
+    
+    // the user changes the slider value, we want two things to happen at the same time:
+    // (1) update the top-level cell’s text label with the new slider value (“experience level” in our app)
+    // (2) store the slider’s value to the respective cell descriptor so it remains up to date even after having refreshed the tableview
+    func sliderDidChangeValue(newSliderValue: String) {
+        cellDescriptors[2][0].setValue(newSliderValue, forKey: "primaryTitle")
+        cellDescriptors[2][1].setValue(newSliderValue, forKey: "value")
+        
+        tblExpandable.reloadSections(NSIndexSet(index: 2), withRowAnimation: UITableViewRowAnimation.None)
+    }
     
     // this function is responsible for loading the file contents into the array
     func loadCellDescriptors() {
@@ -168,6 +227,8 @@ class ViewController: UIViewController, UITableViewDelegate, UITableViewDataSour
             let value = currentCellDescriptor["value"] as! String
             cell.slExperienceLevel.value = (value as NSString).floatValue
         }
+        // because we are now using CustomCellDelegate, we must tell the TBView that the ViewController is the delegate
+        cell.delegate = self
         
         return cell
     }
