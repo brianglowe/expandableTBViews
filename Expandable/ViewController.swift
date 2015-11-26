@@ -207,6 +207,31 @@ class ViewController: UIViewController, UITableViewDelegate, UITableViewDataSour
             for i in (indexOfTappedRow + 1)...(indexOfTappedRow + (cellDescriptors[indexPath.section][indexOfTappedRow]["additionalRows"] as! Int)) {
                 cellDescriptors[indexPath.section][i].setValue(shouldExpandAndShowSubRows, forKey: "isVisible")
             }
+        
+        }   else {
+            //We’ll find the row index of the top-level cell that is supposed to be the “parent” cell of the tapped one. In truth, we’ll perform a search towards the beginning of the cell descriptors and the first top-level cell that is spotted (the first cell that is expandable) is the one we want.
+                if cellDescriptors[indexPath.section][indexOfTappedRow]["cellIdentifier"] as! String == "idCellValuePicker" {
+         
+                var indexOfParentCell: Int!
+                
+                for var i=indexOfTappedRow - 1; i>=0; --i {
+                    if cellDescriptors[indexPath.section][i]["isExpandable"] as! Bool == true {
+                        indexOfParentCell = i
+                        break
+                    }
+                }
+                // We’ll set the displayed value of the selected cell as the text of the textLabel label of the top-level cell.
+                // We’ll mark the top-level cell as not expanded.
+                cellDescriptors[indexPath.section][indexOfParentCell].setValue((tblExpandable.cellForRowAtIndexPath(indexPath) as! CustomCell).textLabel?.text, forKey: "primaryTitle")
+                cellDescriptors[indexPath.section][indexOfParentCell].setValue(false, forKey: "isExpanded")
+                    
+                // We’ll mark all the sub-cells of the found top-level one as not visible.
+                for i in (indexOfParentCell + 1)...(indexOfParentCell + (cellDescriptors[indexPath.section][indexOfParentCell]["additionalRows"] as! Int)) {
+                    cellDescriptors[indexPath.section][i].setValue(false, forKey: "isVisible")
+                    }
+            
+                }
+            
         }
         
         getIndiciesOfVisibleRows()
